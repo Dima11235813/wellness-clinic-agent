@@ -1,0 +1,65 @@
+# ── Node & TypeScript ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tgz
+dist/
+build/
+tmp/
+temp/
+.cache/
+.eslintcache
+*.tsbuildinfo
+
+# ── Angular (apps/web) ─────────────────────────────────────────────
+apps/web/.angular/
+apps/web/.angular/cache/
+apps/web/dist/
+apps/web/src/environments/environment*.ts
+
+# ── API (apps/api) ────────────────────────────────────────────────
+apps/api/.env
+apps/api/dist/
+apps/api/.cache/
+apps/api/var/chroma/         # local Chroma DB persistence (recreated on boot)
+
+# ── Shared packages (packages/dto, packages/ui) ───────────────────
+packages/*/dist/
+
+# ── Logs & runtime output ─────────────────────────────────────────
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# ── OS & Editor files ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# ── Environment / secrets ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Coverage & testing ────────────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+cypress/screenshots/
+cypress/videos/
+
+# ── Miscellaneous ────────────────────────────────────────────────
+*.local
+*.lock-wscript
+convo
+arch
+proj-mgmt/
