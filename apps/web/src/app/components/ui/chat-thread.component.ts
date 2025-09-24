@@ -2,6 +2,7 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatMessage } from '../../state/app-state.store';
 import { LangChainSerializedMessage } from '@wellness/dto';
+import { AppStateStore } from '../../state/app-state.store';
 
 @Component({
   selector: 'ui-chat-thread',
@@ -19,6 +20,15 @@ import { LangChainSerializedMessage } from '@wellness/dto';
           </div>
         </div>
       </div>
+      <div *ngIf="store.isLoading()" class="message assistant typing">
+        <div class="bubble">
+          <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [
@@ -30,12 +40,35 @@ import { LangChainSerializedMessage } from '@wellness/dto';
     .message.user .bubble { background: #2563eb; color: #fff; border-color: #1d4ed8; }
     .meta { margin-top: 6px; font-size: 12px; color: #64748b; display: flex; gap: 6px; align-items: center; }
     .message.user .meta { color: rgba(255,255,255,0.85); }
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .typing-indicator span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #64748b;
+      animation: typing 1.4s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+    @keyframes typing {
+      0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    .message.assistant.typing .bubble { background: #f8fafc; border-color: #e2e8f0; }
     `
   ]
 })
 export class ChatThreadComponent {
   // Accept either our ChatMessage DTOs or LangChain-serialized messages
   @Input({ required: true }) messages: Array<ChatMessage | LangChainSerializedMessage> = [];
+
+  constructor(public readonly store: AppStateStore) {}
 
   getRole(m: ChatMessage | LangChainSerializedMessage): 'user' | 'assistant' {
     if ((m as ChatMessage).role && (((m as ChatMessage).role === 'user') || ((m as ChatMessage).role === 'assistant'))) {
