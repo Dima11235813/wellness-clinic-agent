@@ -13,15 +13,6 @@ export function makePolicyQuestionNode({ logger, llm, retrievalService }: Deps) 
     if (state.userQuery) {
       const userQuery = state.userQuery;
 
-      // Add a "thinking" message to show we're researching
-      const thinkingMessage = new AIMessage({
-        content: "Let me research that policy question for you...",
-        id: `msg_${Date.now()}_thinking`,
-        additional_kwargs: {
-          at: new Date().toISOString(),
-        },
-      });
-
       // Use vector search to find relevant policy documents
       logger.info('policyQuestionNode: Searching for relevant policy documents', {
         query: userQuery,
@@ -51,7 +42,7 @@ export function makePolicyQuestionNode({ logger, llm, retrievalService }: Deps) 
 
         return new Command({
           update: {
-            messages: [...state.messages, thinkingMessage, noDataAiMessage],
+            messages: [...state.messages, noDataAiMessage],
             // Keep userQuery for conversation history
             uiPhase: UiPhase.Chatting,
           },
@@ -199,7 +190,7 @@ ${retrievalResult.chunks.map(chunk =>
 
         return new Command({
           update: {
-            messages: [...state.messages, thinkingMessage, conservativeMessage],
+            messages: [...state.messages, conservativeMessage],
             // Keep userQuery for conversation history
             uiPhase: UiPhase.Chatting,
             retrievedDocs: retrievalResult.chunks,
@@ -226,7 +217,7 @@ ${retrievalResult.chunks.map(chunk =>
 
       return new Command({
         update: {
-          messages: [...state.messages, thinkingMessage, answerMessage],
+          messages: [...state.messages, answerMessage],
           uiPhase: UiPhase.Chatting,
           // Keep userQuery for conversation history
           retrievedDocs: [],

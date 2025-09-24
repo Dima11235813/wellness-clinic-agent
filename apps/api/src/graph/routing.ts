@@ -13,6 +13,12 @@ export function routeAfterInferIntent({ logger }: Deps) {
       return "__end__";
     }
 
+    // If user has escalated, always route to policy questions regardless of intent
+    if (state.userEscalated) {
+      logger.info('User has previously escalated, routing to policy question');
+      return NodeName.POLICY_QUESTION;
+    }
+
     if (state.intent === NodeName.OFFER_OPTIONS) {
       logger.info('User intent is scheduling, routing to offer options');
       return NodeName.OFFER_OPTIONS;

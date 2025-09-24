@@ -73,7 +73,20 @@ export function makeInferIntentNode({ logger, tools, llm }: Deps) {
 
       // Create appropriate message based on intent
       let intentMessage: AIMessage;
-      if (intentResult.intent === NodeName.OFFER_OPTIONS) {
+      let finalIntent = intentResult.intent;
+      let finalUiPhase = UiPhase.Chatting;
+
+      // If user has escalated, force policy question intent
+      if (state.userEscalated) {
+        finalIntent = NodeName.POLICY_QUESTION;
+        intentMessage = new AIMessage({
+          content: "I understand you're asking about our policies. Let me research that for you.",
+          id: `msg_${Date.now()}`,
+          additional_kwargs: {
+            at: new Date().toISOString(),
+          },
+        });
+      } else if (intentResult.intent === NodeName.OFFER_OPTIONS) {
         intentMessage = new AIMessage({
           content: "I understand you'd like to check available appointment times. Let me look up the available slots for you.",
           id: `msg_${Date.now()}`,
@@ -81,6 +94,7 @@ export function makeInferIntentNode({ logger, tools, llm }: Deps) {
             at: new Date().toISOString(),
           },
         });
+        finalUiPhase = UiPhase.SelectingTime;
       } else {
         intentMessage = new AIMessage({
           content: "I understand you're asking about our policies. Let me research that for you.",
@@ -93,10 +107,10 @@ export function makeInferIntentNode({ logger, tools, llm }: Deps) {
 
       return {
         messages: [...state.messages, intentMessage],
-        intent: intentResult.intent === NodeName.OFFER_OPTIONS ? NodeName.OFFER_OPTIONS :
-                intentResult.intent === NodeName.POLICY_QUESTION ? NodeName.POLICY_QUESTION :
+        intent: finalIntent === NodeName.OFFER_OPTIONS ? NodeName.OFFER_OPTIONS :
+                finalIntent === NodeName.POLICY_QUESTION ? NodeName.POLICY_QUESTION :
                 NodeName.POLICY_QUESTION,
-        uiPhase: intentResult.intent === NodeName.OFFER_OPTIONS ? UiPhase.SelectingTime : UiPhase.Chatting
+        uiPhase: finalUiPhase
       };
     } catch (error) {
       logger.error('inferIntentNode: Error in intent inference', { error });
