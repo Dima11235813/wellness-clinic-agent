@@ -44,12 +44,24 @@ export function makeConfirmTimeNode({ logger, tools }: Deps) {
 
     // User has selected a slot, proceed with confirmation logic
     if (state.selectedSlotId === 'none') {
-      logger.info("confirmTimeNode: User selected 'none of these work'");
+      logger.info("confirmTimeNode: User selected 'none of these work', escalating to human");
+
+      const escalationMessage = new AIMessage({
+        content: "I understand none of these times work for you. I'll notify a representative to reach out to you directly. In the meantime, feel free to ask me any policy questions you might have.",
+        id: `msg_${Date.now()}`,
+        additional_kwargs: {
+          at: new Date().toISOString()
+        }
+      });
+
       return new Command({
         update: {
+          messages: [...state.messages, escalationMessage],
+          userEscalated: true, // Mark user as escalated to prevent future scheduling
           escalationNeeded: true,
           availableTimesDoNotWork: true,
-          selectedSlotId: undefined as any // Clear the selection
+          selectedSlotId: undefined as any, // Clear the selection
+          uiPhase: UiPhase.Escalated // Change to escalated phase
         }
       });
     }
