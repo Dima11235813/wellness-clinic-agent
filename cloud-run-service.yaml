@@ -1,0 +1,76 @@
+apiVersion: serving.kniv.dev/v1
+kind: Service
+metadata:
+  name: wellness-agent
+  labels:
+    app: wellness-agent
+spec:
+  template:
+    metadata:
+      labels:
+        app: wellness-agent
+    spec:
+      containers:
+      - name: wellness-agent
+        image: gcr.io/YOUR_PROJECT_ID/wellness-agent:latest
+        ports:
+        - name: http1
+          containerPort: 3000
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NODE_ENV
+          value: "production"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-api-key
+              key: api-key
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: 1000m
+          requests:
+            memory: 512Mi
+            cpu: 500m
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 18
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+# Optional: Service account for accessing secrets
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: wellness-agent-sa
+spec:
+  displayName: Wellness Agent Service Account
+---
+# Optional: Secret for OpenAI API key (create this manually or via CI/CD)
+# apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+# kind: Secret
+# metadata:
+#   name: openai-api-key
+# spec:
+#   replication:
+#     automatic: true
