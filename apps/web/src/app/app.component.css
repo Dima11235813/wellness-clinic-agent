@@ -1,0 +1,2 @@
+/* minimal page background */
+:host { display: block; min-height: 100dvh; background: #f8fafc; }
