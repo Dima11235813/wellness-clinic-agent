@@ -20,8 +20,8 @@ export function routeAfterInferIntent({ logger }: Deps) {
     }
 
     if (state.intent === NodeName.OFFER_OPTIONS) {
-      logger.info('User intent is scheduling, routing to offer options');
-      return NodeName.OFFER_OPTIONS;
+      logger.info('User intent is scheduling, routing to offer options agent');
+      return "offer_options_agent";
     }
     // For now we only have two options, get options for rescheduleing or
     // getting policy information
@@ -48,13 +48,32 @@ export function routeAfterOfferOptions({ logger }: Deps) {
 }
 
 /**
+ * Routing function after offer options agent node
+ * Routes to tools if there are tool calls, otherwise to final processing
+ */
+export function routeAfterOfferOptionsAgent({ logger }: Deps) {
+  return (state: State) => {
+    const { messages } = state;
+    const lastMessage = messages[messages.length - 1];
+
+    if (lastMessage && "tool_calls" in lastMessage && (lastMessage as any).tool_calls && (lastMessage as any).tool_calls.length > 0) {
+      logger.info('Agent produced tool calls, routing to tools execution');
+      return "offer_options_tools";
+    }
+
+    logger.info('No tool calls needed, routing directly to final processing');
+    return "offer_options_final";
+  };
+}
+
+/**
  * Routing function after confirm time
  */
 export function routeAfterConfirmTime({ logger }: Deps) {
   return (state: State) => {
     if (state.escalationNeeded) {
-      logger.info('User rejected time confirmation, going back to offer options');
-      return NodeName.OFFER_OPTIONS;
+      logger.info('User rejected time confirmation, going back to offer options agent');
+      return "offer_options_agent";
     }
 
     logger.info('Time confirmed, proceeding to notify user');
