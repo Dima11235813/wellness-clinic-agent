@@ -24,6 +24,14 @@ export interface TimeSlot {
   provider?: string;
 }
 
+// Represents a user's currently scheduled appointment that we might reschedule
+export interface UserAppointment {
+  id?: string;
+  startISO: string;
+  endISO: string;
+  provider: string;
+}
+
 export enum InterruptKind {
   StartSuggest = 'StartSuggest',
   SelectTime = 'SelectTime',

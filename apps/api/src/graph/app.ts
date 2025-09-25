@@ -99,5 +99,20 @@ export function getCompiledGraph(embeddingService?: EmbeddingService, retrievalS
 
 // Export a factory compatible with LangGraph Studio (expects a function returning a compiled graph)
 export async function studio() {
-  throw new Error('Studio mode requires services to be passed. Use getCompiledGraph with services instead.');
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY environment variable is required for studio mode');
+  }
+
+  console.log('[studio] Initializing embedding and retrieval services...');
+  const embeddingService = new EmbeddingService(apiKey);
+  const retrievalService = new RetrievalService(embeddingService);
+
+  // Initialize RAG knowledge base
+  const { ingestPolicies } = await import('../scripts/ingestPolicies.js');
+  console.log('[studio] Initializing RAG knowledge base...');
+  await ingestPolicies(retrievalService);
+  console.log('[studio] RAG knowledge base initialized successfully');
+
+  return getCompiledGraph(embeddingService, retrievalService);
 }
