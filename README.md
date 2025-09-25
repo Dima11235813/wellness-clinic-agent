@@ -8,7 +8,6 @@ Our client receives numerous phone calls daily about basic policy inquiries and 
 
 ![Agent Architecture Graph](./graph-architecture.png)
 
-*Placeholder for LangGraph architecture diagram showing conversation flow nodes*
 
 ## Core Features
 
@@ -34,7 +33,7 @@ Our client receives numerous phone calls daily about basic policy inquiries and 
 ### Backend (Node.js + LangGraph)
 - **LangGraph** orchestrates conversation flow with state machines
 - **LangChain** powers RAG retrieval and LLM interactions
-- **Chroma** vector database for policy document embeddings
+- **In-memory vector store** for policy document embeddings
 - **Express.js** API server with Server-Sent Events (SSE) streaming
 - **TypeScript** for type safety across the application
 
@@ -49,7 +48,7 @@ Our client receives numerous phone calls daily about basic policy inquiries and 
 | Aspect | Current MVP Approach | Trade-off/Rationale |
 |--------|---------------------|-------------------|
 | **Deployment** | Monolithic container | Simpler ops vs. microservices scalability |
-| **Database** | File-based Chroma | Fast MVP iteration vs. production persistence |
+| **Database** | In-memory vector store | Fast MVP iteration vs. production persistence |
 | **Scheduling** | Stubbed time slots | Demo functionality vs. real calendar integration |
 | **Evaluation** | Local LangSmith | Development testing vs. production monitoring |
 | **Authentication** | None required | MVP focus vs. production security |
@@ -233,8 +232,6 @@ wellness-agent/
 │   └── dto/           # Shared TypeScript types
 ├── data/
 │   └── policies/      # Policy documents for RAG
-├── var/
-│   └── vector/        # Local vector database storage
 └── eval/              # Evaluation test suites
 ```
 
