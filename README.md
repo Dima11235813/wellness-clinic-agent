@@ -84,6 +84,23 @@ Our client receives numerous phone calls daily about basic policy inquiries and 
 
    This runs the full-stack application on `http://localhost:3000`
 
+### Docker Testing
+
+To test the application in a Docker container (requires Docker installed):
+
+```bash
+# Build the Docker image
+docker build -t wellness-agent .
+
+# Run the container (requires OPENAI_API_KEY environment variable)
+docker run -p 3000:3000 -e OPENAI_API_KEY=your_key_here wellness-agent
+
+# Or use a .env file
+docker run -p 3000:3000 --env-file apps/api/.env wellness-agent
+```
+
+The container exposes the application on `http://localhost:3000`
+
 ### Development
 ```bash
 # Run frontend and backend concurrently
@@ -201,25 +218,78 @@ npm run -w apps/api eval:context    # Context preservation
 - **Edge Cases**: Handling of ambiguous queries and escalation scenarios
 - **UI Integration**: Playwright tests for frontend interaction patterns
 
+## TODO: Assignment Requirements & Next Sprint Priorities
+
+Based on the Agent Engineer Take Home Exercise requirements, here are the key items we need to implement for production readiness:
+
+### 🚨 Critical Assignment Gaps (Must-Haves)
+- [ ] **Docker Container Testing**: Verify the root-level `npm run start` works in a locally built Docker container with proper environment setup *(Build tested locally ✅, container testing pending Docker availability)*
+- [ ] **LangSmith Eval Suite**: Implement comprehensive evaluation dataset with expected outcomes for policy Q&A accuracy and conversation trajectories
+- [ ] **Enhanced Tool Observability**: Extract embedded logic from nodes into proper LangChain tools for full LangSmith tracing
+
+### 🔧 Architecture Improvements Needed
+- [ ] **Policy Answer Node Refactoring**: Break down `policyAnswer.ts` into separate tools:
+  - [ ] `policyRetrievalTool`: Vector search and document retrieval
+  - [ ] `policyAnswerTool`: LLM-powered answer generation
+  - [ ] `answerValidationTool`: LLM-as-judge for answer quality and hallucination detection
+  - [ ] `answerRewriteTool`: Conditional answer improvement if validation fails
+
+- [ ] **Appointment Workflow Tool Extraction**:
+  - [ ] `availabilityCheckTool`: Calendar availability queries (currently stubbed)
+  - [ ] `appointmentSelectionTool`: Handle user appointment choice and validation
+  - [ ] `appointmentConfirmationTool`: Two-way confirmation with human-in-the-loop
+  - [ ] `escalationTool`: Intelligent routing to human representatives
+  - [ ] `rescheduleTool`: Appointment modification with business rule validation
+
+### 🧪 Testing & Quality Assurance
+- [ ] **Appointment Selection Testing**: End-to-end testing of the complete appointment booking flow including user selection, confirmation, and edge cases
+- [ ] **Policy Answer Quality Evals**: Automated evaluation suite measuring answer accuracy, hallucination rates, and source attribution
+- [ ] **Conversation Trajectory Testing**: Multi-turn conversation flow validation with state preservation checks
+- [ ] **Integration Testing**: Full-stack testing combining frontend interactions with backend graph execution
+
+### 📊 Observability & Monitoring
+- [ ] **LangSmith Instrumentation**: Complete tool-level tracing for all agent actions and decisions
+- [ ] **Performance Metrics**: Response time tracking, token usage monitoring, and success rate analytics
+- [ ] **Error Handling**: Comprehensive error boundaries with graceful degradation and user-friendly messaging
+
+### 🔒 Production Readiness
+- [ ] **Environment Configuration**: Proper `.env.example` with all required variables (OPENAI_API_KEY, LANGSMITH_API_KEY, etc.)
+- [ ] **Health Checks**: Application health endpoints for container orchestration
+- [ ] **Logging**: Structured logging with appropriate levels and context
+- [ ] **Security**: Input validation, rate limiting, and basic security hardening
+
 ## Future Roadmap
 
-### Phase 1: Production Readiness
-- [ ] **CI/CD Pipeline** with isolated frontend/backend deployments
-- [ ] **Persistent Vector Database** (pgvector or Pinecone)
-- [ ] **Authentication & Authorization** integration
-- [ ] **Monitoring & Logging** with structured telemetry
+### Sprint 1: Core Architecture Refinement (2-3 weeks)
+- [ ] **Tool Architecture Overhaul**: Complete extraction of embedded logic from nodes into observable LangChain tools
+- [ ] **Policy Pipeline Enhancement**: Implement retrieval → answer → validate → rewrite pipeline with LLM-as-judge
+- [ ] **Appointment Flow Completion**: Full implementation of availability checking, selection, confirmation, and escalation tools
+- [ ] **Docker & Deployment Validation**: Test containerized deployment with proper environment management
+- [ ] **LangSmith Eval Implementation**: Build evaluation datasets measuring accuracy, hallucination rates, and user satisfaction
 
-### Phase 2: Enhanced Features
-- [ ] **Multi-language Support** for diverse clinic populations
-- [ ] **Voice Integration** with speech-to-text capabilities
-- [ ] **Calendar System Integration** (Google Calendar, Outlook)
-- [ ] **Analytics Dashboard** for conversation insights
+### Phase 1: Production Readiness (4-6 weeks)
+- [ ] **CI/CD Pipeline** with isolated frontend/backend deployments and automated testing
+- [ ] **Persistent Vector Database** (pgvector or Pinecone) replacing in-memory storage
+- [ ] **Authentication & Authorization** integration with role-based access control
+- [ ] **Monitoring & Logging** with structured telemetry and error tracking
+- [ ] **Security Hardening**: Input validation, rate limiting, and data sanitization
+- [ ] **Performance Optimization**: Response time improvements and resource usage monitoring
 
-### Phase 3: Advanced Capabilities
-- [ ] **Multi-modal Inputs** (document upload, photo analysis)
-- [ ] **Personalized Recommendations** based on user history
-- [ ] **Integration APIs** for EHR systems and patient portals
-- [ ] **Advanced Evaluation** with A/B testing frameworks
+### Phase 2: Enhanced Healthcare Features (6-8 weeks)
+- [ ] **Multi-language Support** for diverse clinic populations with translation services
+- [ ] **Voice Integration** with speech-to-text and text-to-speech capabilities
+- [ ] **Real Calendar Integration** (Google Calendar, Outlook) replacing stubbed availability
+- [ ] **Advanced Appointment Features**: Recurring appointments, provider preferences, waitlist management
+- [ ] **Analytics Dashboard** for conversation insights and agent performance metrics
+- [ ] **PII Detection & Redaction**: Automatic identification and masking of sensitive health information
+
+### Phase 3: Advanced Capabilities (8-12 weeks)
+- [ ] **Multi-modal Inputs**: Document upload, photo analysis for symptom checking
+- [ ] **Personalized Recommendations**: ML-powered suggestions based on user history and patterns
+- [ ] **Integration APIs**: EHR systems, patient portals, and healthcare provider networks
+- [ ] **Advanced Evaluation Framework**: A/B testing, user feedback loops, and continuous improvement
+- [ ] **Mobile Application**: Native iOS/Android apps with push notifications
+- [ ] **Offline Capability**: Basic functionality without internet connectivity for rural areas
 
 ## Project Structure
 

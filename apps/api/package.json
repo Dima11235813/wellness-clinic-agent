@@ -10,13 +10,13 @@
     "start": "node dist/index.js",
     "test:rag": "cross-env NODE_ENV=development tsx --tsconfig tsconfig.json src/scripts/testRag.ts",
     "test:vector": "cross-env NODE_ENV=development tsx --tsconfig tsconfig.json src/scripts/testVectorInspection.ts",
-    "eval:all": "cross-env NODE_ENV=development node --loader ts-node/esm eval/run-evaluations.ts",
-    "eval:trajectory": "cross-env NODE_ENV=development node --loader ts-node/esm -e \"import('./eval/run-evaluations.ts').then(m => m.runTrajectoryEval())\"",
-    "eval:policy": "cross-env NODE_ENV=development node --loader ts-node/esm -e \"import('./eval/run-evaluations.ts').then(m => m.runPolicyEval())\"",
-    "eval:context": "cross-env NODE_ENV=development node --loader ts-node/esm -e \"import('./eval/run-evaluations.ts').then(m => m.runContextEval())\"",
-    "eval:comprehensive": "cross-env NODE_ENV=development node --loader ts-node/esm -e \"import('./eval/run-evaluations.ts').then(m => m.runComprehensiveEval())\"",
-    "eval:validate": "cross-env NODE_ENV=development node --loader ts-node/esm eval/validate-dataset.ts",
-    "eval:test": "cross-env NODE_ENV=development node --loader ts-node/esm eval/test-setup.ts"
+    "eval:all": "cross-env NODE_ENV=development node --loader ts-node/esm dist/eval/run-evaluations.js",
+    "eval:trajectory": "cross-env NODE_ENV=development node --loader ts-node/esm dist/eval/run-trajectory-eval.js",
+    "eval:policy": "cross-env NODE_ENV=development node --loader ts-node/esm dist/eval/run-policy-eval.js",
+    "eval:context": "cross-env NODE_ENV=development node --loader ts-node/esm dist/eval/run-context-eval.js",
+    "eval:comprehensive": "cross-env NODE_ENV=development node --loader ts-node/esm dist/eval/run-comprehensive-eval.js",
+    "eval:validate": "cross-env NODE_ENV=development node dist/eval/validate-dataset.js",
+    "eval:test": "cross-env NODE_ENV=development node dist/eval/test-setup.js"
   },
   "dependencies": {
     "@langchain/community": "^0.3.14",
@@ -35,6 +35,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.11",
+    "@types/uuid": "^10.0.0",
     "agentevals": "^0.0.6",
     "cross-env": "^7.0.3",
     "langsmith": "^0.3.69",
