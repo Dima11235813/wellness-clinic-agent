@@ -1,3 +1,5 @@
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
 import { calendarService, RescheduleAppointmentArgs } from "../../services/calendar.js";
 
 // Tool argument types - extending the service args with additional context
@@ -5,6 +7,16 @@ export interface RescheduleAppointmentToolArgs extends RescheduleAppointmentArgs
   userKey?: string; // For tracking/logging purposes
   originalSlotId?: string; // Reference to the original appointment slot
 }
+
+// Tool argument schema - all fields must be required for OpenAI structured outputs
+const rescheduleAppointmentSchema = z.object({
+  eventId: z.string().describe("The ID of the existing calendar event to reschedule"),
+  newStartTime: z.string().describe("New start time in ISO format"),
+  newEndTime: z.string().describe("New end time in ISO format"),
+  reason: z.string().nullable().describe("Reason for rescheduling"),
+  userKey: z.string().nullable().describe("User identifier for tracking"),
+  originalSlotId: z.string().nullable().describe("Reference to the original appointment slot")
+});
 
 // Tool implementation for rescheduling appointments
 async function rescheduleAppointmentImpl({
@@ -14,7 +26,14 @@ async function rescheduleAppointmentImpl({
   reason,
   userKey,
   originalSlotId
-}: RescheduleAppointmentToolArgs): Promise<{
+}: {
+  eventId: string;
+  newStartTime: string;
+  newEndTime: string;
+  reason: string | null;
+  userKey: string | null;
+  originalSlotId: string | null;
+}): Promise<{
   success: boolean;
   eventId: string;
   message: string;
@@ -27,7 +46,7 @@ async function rescheduleAppointmentImpl({
       eventId,
       newStartTime,
       newEndTime,
-      reason
+      reason: reason || undefined
     });
 
     if (result.success) {
@@ -35,14 +54,14 @@ async function rescheduleAppointmentImpl({
         success: true,
         eventId,
         message: `Appointment successfully rescheduled to ${new Date(newStartTime).toLocaleString()}${reason ? ` (${reason})` : ''}`,
-        originalSlotId
+        originalSlotId: originalSlotId || undefined
       };
     } else {
       return {
         success: false,
         eventId,
         message: "Unable to reschedule appointment due to scheduling conflicts. Please try a different time.",
-        originalSlotId
+        originalSlotId: originalSlotId || undefined
       };
     }
   } catch (error) {
@@ -51,14 +70,14 @@ async function rescheduleAppointmentImpl({
       success: false,
       eventId,
       message: "An error occurred while rescheduling the appointment. Please try again or contact support.",
-      originalSlotId
+      originalSlotId: originalSlotId || undefined
     };
   }
 }
 
-// Tool definition following LangGraph patterns
-export const rescheduleTool = {
+// Tool definition using LangChain tool pattern
+export const rescheduleTool = tool(rescheduleAppointmentImpl, {
   name: "reschedule_appointment",
   description: "Reschedule an existing wellness clinic appointment to a new time. This tool updates the calendar event and handles conflicts. Use this when a user wants to change their appointment time.",
-  invoke: rescheduleAppointmentImpl,
-};
+  schema: rescheduleAppointmentSchema,
+});

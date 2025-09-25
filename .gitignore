@@ -63,3 +63,5 @@ cypress/videos/
 convo
 arch
 proj-mgmt/
+# LangGraph API
+.langgraph_api

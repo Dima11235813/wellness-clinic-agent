@@ -16,7 +16,7 @@ export const StateAnnotation = Annotation.Root({
 
   // Business logic state
   userQuery: Annotation<string>(),
-  intent: Annotation<NodeName.POLICY_QUESTION | NodeName.OFFER_OPTIONS | 'unknown'>(),
+  intent: Annotation<NodeName.POLICY_QUESTION | NodeName.OFFER_OPTIONS_AGENT | null>(),
   // Gate future rescheduling attempts if the user has escalated before
   userEscalated: Annotation<boolean>(),
   userKey: Annotation<string>(),

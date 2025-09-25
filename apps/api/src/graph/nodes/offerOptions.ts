@@ -1,8 +1,9 @@
 import { State } from "../schema.js";
-import { TimeSlot, UiPhase } from "@wellness/dto";
+import { TimeSlot, AvailabilityResponse, UiPhase, InterruptPayload, InterruptKind, NodeName } from "@wellness/dto";
 import { Deps } from "../deps.js";
-import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
-import { Command } from "@langchain/langgraph";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { Command, interrupt } from "@langchain/langgraph";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { availabilityTool } from "../tools/availability.js";
 
 /**
@@ -10,7 +11,7 @@ import { availabilityTool } from "../tools/availability.js";
  * This follows the ToolNode pattern from LangGraph docs
  */
 export function makeOfferOptionsAgentNode({ logger, llm }: Deps) {
-  return async function offerOptionsAgentNode(state: State) {
+  return async function offerOptionsAgentNode(state: State): Promise<Partial<State>> {
     logger.info("offerOptionsAgentNode: Calling LLM with availability tool");
 
     // Bind the availability tool to the LLM
@@ -21,8 +22,10 @@ export function makeOfferOptionsAgentNode({ logger, llm }: Deps) {
       content: `Find available appointment times for this user. Use their preferred date (${state.preferredDate || 'any date'}) and provider (${state.preferredProvider || 'any provider'}).`
     });
 
-    // Call the LLM with the tool
-    const response = await llmWithTools.invoke([humanMessage]);
+    // Include prior conversation for better grounding per ToolNode docs
+    // Narrow the message history to a safe size to avoid deep type instantiation
+    const priorMessages = (state.messages || []).slice(-10);
+    const response = await (llmWithTools as any).invoke([...priorMessages, humanMessage] as any);
 
     logger.info("offerOptionsAgentNode: LLM response", {
       hasToolCalls: (response as any).tool_calls && (response as any).tool_calls.length > 0,
@@ -40,54 +43,15 @@ export function makeOfferOptionsAgentNode({ logger, llm }: Deps) {
  * This follows the ToolNode pattern from LangGraph docs
  */
 export function makeOfferOptionsToolsNode({ logger }: Deps) {
-  return async function offerOptionsToolsNode(state: State) {
-    logger.info("offerOptionsToolsNode: Executing tool calls");
+  // Create ToolNode with the availability tool; relax generics to avoid deep instantiation issues
+  const toolNode: any = new (ToolNode as any)([availabilityTool as any]);
 
-    const { messages } = state;
-    const lastMessage = messages[messages.length - 1];
+  return async function offerOptionsToolsNode(state: State): Promise<Partial<State>> {
+    logger.info("offerOptionsToolsNode: Executing tool calls via ToolNode");
 
-    // Check if there are tool calls to execute
-    if (!lastMessage || !("tool_calls" in lastMessage) || !(lastMessage as any).tool_calls?.length) {
-      logger.warn("offerOptionsToolsNode: No tool calls found in last message");
-      throw new Error("No tool calls to execute");
-    }
-
-    // Execute the tool calls (in this case, just availability tool)
-    const toolResults = [];
-
-    for (const toolCall of (lastMessage as any).tool_calls) {
-      if (toolCall.name === "get_availability") {
-        try {
-          logger.info("offerOptionsToolsNode: Calling availability tool", { args: toolCall.args });
-          const result = await availabilityTool.invoke(toolCall.args);
-          toolResults.push({
-            tool_call_id: toolCall.id,
-            content: JSON.stringify(result), // ToolNode expects string content
-            name: toolCall.name
-          });
-        } catch (error) {
-          logger.error("offerOptionsToolsNode: Error executing availability tool", {
-            error: error instanceof Error ? error.message : String(error)
-          });
-          toolResults.push({
-            tool_call_id: toolCall.id,
-            content: "Error fetching availability",
-            name: toolCall.name
-          });
-        }
-      }
-    }
-
-    // Create ToolMessage objects
-    const toolMessages = toolResults.map(result => new ToolMessage({
-      tool_call_id: result.tool_call_id,
-      content: result.content,
-      name: result.name
-    }));
-
-    return {
-      messages: toolMessages
-    };
+    // ToolNode handles the execution of tool calls automatically
+    const result = await (toolNode as any).invoke(state as any);
+    return result as Partial<State>;
   };
 }
 
@@ -99,7 +63,28 @@ export function makeOfferOptionsFinalNode({ logger }: Deps) {
   return async function offerOptionsFinalNode(state: State): Promise<Command> {
     logger.info("offerOptionsFinalNode: Processing tool results");
 
-    const { messages } = state;
+    const { messages, selectedSlotId } = state;
+
+    // If we have a selectedSlotId, we're resuming from an interrupt
+    if (selectedSlotId) {
+      logger.info("offerOptionsFinalNode: Resuming from interrupt with selection", {
+        selectedSlotId
+      });
+
+      if (selectedSlotId === 'none') {
+        // User indicated none of the times work - escalate
+        logger.info("offerOptionsFinalNode: User selected 'none', escalating");
+        return new Command({
+          goto: NodeName.ESCALATE_HUMAN
+        });
+      } else {
+        // User selected a time - proceed to confirmation
+        logger.info("offerOptionsFinalNode: User selected time, proceeding to confirmation");
+        return new Command({
+          goto: NodeName.CONFIRM_TIME
+        });
+      }
+    }
 
     // Find the last tool message with availability results
     const toolMessages = messages.filter(msg => msg._getType() === "tool");
@@ -124,14 +109,27 @@ export function makeOfferOptionsFinalNode({ logger }: Deps) {
       });
     }
 
-    // Parse the tool results
+    // Parse the tool results - content might be already parsed array or string
     let slots: TimeSlot[] = [];
     try {
-      slots = JSON.parse(lastToolMessage.content as string);
+      logger.info("offerOptionsFinalNode: Processing tool results", { content: lastToolMessage.content });
+
+      if (Array.isArray(lastToolMessage.content)) {
+        // Content is already parsed as an array
+        slots = lastToolMessage.content as TimeSlot[];
+      } else if (typeof lastToolMessage.content === 'string') {
+        // Content is a JSON string that needs parsing
+        const parsed = JSON.parse(lastToolMessage.content);
+        slots = Array.isArray(parsed) ? parsed : parsed.slots || [];
+      } else {
+        // Content is an object with slots property
+        const response = lastToolMessage.content as AvailabilityResponse;
+        slots = response.slots || [];
+      }
     } catch (error) {
-      logger.error("offerOptionsFinalNode: Failed to parse tool results", { content: lastToolMessage.content });
+      logger.error("offerOptionsFinalNode: Failed to process tool results", { content: lastToolMessage.content, error: error instanceof Error ? error.message : String(error) });
       const errorMessage = new AIMessage({
-        content: "I encountered an error processing availability data. Would you like me to escalate this to our clinic staff?",
+        content: "Our scheduling service is down right now, but you can still ask me questions about our policies.",
         id: `msg_${Date.now()}`,
         additional_kwargs: {
           at: new Date().toISOString()
@@ -190,14 +188,27 @@ export function makeOfferOptionsFinalNode({ logger }: Deps) {
       }
     });
 
-    // Return command with state updates and slots data for frontend
+    // Create interrupt to wait for user to select a time or indicate none work
+    const interruptPayload: InterruptPayload = {
+      kind: InterruptKind.SelectTime,
+      slots: slotsToUse,
+      requiresUserAction: true
+    };
+
+    logger.info("offerOptionsFinalNode: Creating interrupt for time selection", {
+      slotCount: slotsToUse.length
+    });
+
+    // Create interrupt to pause execution and get user selection
+    // Return command with state updates and interrupt to pause execution
     return new Command({
       update: {
         messages: [...state.messages, fetchingMessage],
         uiPhase: UiPhase.SelectingTime,
         availableSlots: slotsToUse,
         escalationNeeded: false,
-        availableTimesDoNotWork: false
+        availableTimesDoNotWork: false,
+        interrupt: interruptPayload
       }
     });
   };

@@ -24,7 +24,7 @@ import { MatIconModule } from '@angular/material/icon';
           <div class="day" *ngFor="let g of groupedByDay">
             <div class="day-heading">{{ g.date | date:'EEEE, MMM d' }}</div>
             <div class="slots">
-              <button mat-stroked-button class="slot" *ngFor="let s of g.slots; trackBy: trackBySlotId" (click)="select.emit(s.id)" aria-label="Select {{ s.startISO | date:'h:mm a' }} appointment time">
+              <button mat-stroked-button class="slot" *ngFor="let s of g.slots; trackBy: trackBySlotId" (click)="select.emit(s.id)" [attr.aria-label]="'Select ' + (s.startISO | date:'h:mm a') + ' appointment time'">
                 <div class="time">
                   <mat-icon fontIcon="schedule" aria-hidden="true">schedule</mat-icon>
                   <span>{{ s.startISO | date:'h:mm a' }}</span>

@@ -41,7 +41,7 @@ chatRouter.post("/chat", async (req, res) => {
       interrupt: undefined,
       availableSlots: [],
       userQuery: body.text,
-      intent: 'unknown' as const,
+      intent: null,
       userEscalated: false,
       userKey: threadId,
       userChoice: undefined,

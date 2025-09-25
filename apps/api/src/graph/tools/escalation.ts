@@ -1,8 +1,17 @@
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+
 // Tool argument types
 export interface EscalateToSlackArgs {
   userKey: string;
   reason: string;
 }
+
+// Tool argument schema
+const escalateToSlackSchema = z.object({
+  userKey: z.string().describe("Unique identifier for the user being escalated"),
+  reason: z.string().describe("Reason for escalating the conversation to human support")
+});
 
 // Tool implementation for Slack escalation
 async function escalateToSlackImpl({ userKey, reason }: EscalateToSlackArgs): Promise<{ success: boolean; escalationId: string }> {
@@ -22,9 +31,9 @@ async function escalateToSlackImpl({ userKey, reason }: EscalateToSlackArgs): Pr
   };
 }
 
-// Tool definition following LangGraph patterns
-export const escalationTool = {
+// Tool definition using LangChain tool pattern
+export const escalationTool = tool(escalateToSlackImpl, {
   name: "escalate_to_slack",
   description: "Escalate a user conversation to human support via Slack. Creates a ticket and notifies support agents. This tool handles external API calls to Slack.",
-  invoke: escalateToSlackImpl,
-};
+  schema: escalateToSlackSchema,
+});

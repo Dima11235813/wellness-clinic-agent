@@ -3,6 +3,8 @@ import { InterruptPayload, InterruptKind, UiPhase } from "@wellness/dto";
 import { Deps } from "../deps.js";
 import { AIMessage } from "@langchain/core/messages";
 import { Command, interrupt } from "@langchain/langgraph";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+import { rescheduleTool } from "../tools/reschedule.js";
 
 export function makeConfirmTimeNode({ logger, tools }: Deps) {
   return async function confirmTimeNode(state: State): Promise<Command> {
@@ -99,7 +101,7 @@ export function makeConfirmTimeNode({ logger, tools }: Deps) {
 
       logger.info("confirmTimeNode: User confirmed selection");
 
-      // If we have an eventId, this is a reschedule - show rescheduling message, then call the reschedule tool
+      // If we have an eventId, this is a reschedule - show rescheduling message, then use ToolNode to call the reschedule tool
       if (state.eventId && selectedSlot) {
         // Show rescheduling message before calling the tool
         const reschedulingMessage = new AIMessage({
@@ -110,20 +112,48 @@ export function makeConfirmTimeNode({ logger, tools }: Deps) {
           }
         });
 
-        logger.info("confirmTimeNode: Calling reschedule tool", {
+        logger.info("confirmTimeNode: Calling reschedule tool via ToolNode", {
           eventId: state.eventId,
           newStartTime: selectedSlot.startISO,
           newEndTime: selectedSlot.endISO
         });
 
         try {
-          const rescheduleResult = await tools.rescheduleTool.rescheduleAppointment({
-            eventId: state.eventId,
-            newStartTime: selectedSlot.startISO,
-            newEndTime: selectedSlot.endISO,
-            reason: "User requested reschedule via chat",
-            originalSlotId: state.selectedSlotId
+          // Build a tool call AI message and invoke via ToolNode per LangGraph best practices
+          const toolNode: any = new (ToolNode as any)([rescheduleTool as any]);
+          const toolCallId = `tool_${Date.now()}`;
+
+          const aiToolCallMessage: any = new AIMessage({
+            content: "",
+            tool_calls: [
+              {
+                name: "reschedule_appointment",
+                args: {
+                  eventId: state.eventId,
+                  newStartTime: selectedSlot.startISO,
+                  newEndTime: selectedSlot.endISO,
+                  reason: "User requested reschedule via chat",
+                  userKey: state.userKey || null,
+                  originalSlotId: state.selectedSlotId || null
+                },
+                id: toolCallId,
+                type: "tool_call",
+              }
+            ]
           });
+
+          const toolInvocationResult: any = await (toolNode as any).invoke({ messages: [aiToolCallMessage] });
+          const resultMessages: any[] = (toolInvocationResult && toolInvocationResult.messages) || [];
+          const lastToolMsg: any = resultMessages[resultMessages.length - 1];
+
+          let rescheduleResult: any = lastToolMsg?.content;
+          if (typeof rescheduleResult === 'string') {
+            try {
+              rescheduleResult = JSON.parse(rescheduleResult);
+            } catch (e) {
+              // keep as string
+            }
+          }
 
           if (!rescheduleResult.success) {
             logger.warn("confirmTimeNode: Reschedule failed", {
@@ -164,7 +194,7 @@ export function makeConfirmTimeNode({ logger, tools }: Deps) {
           });
 
         } catch (error) {
-          logger.error("confirmTimeNode: Error calling reschedule tool", { error });
+          logger.error("confirmTimeNode: Error invoking reschedule ToolNode", { error });
           const errorMessage = new AIMessage({
             content: "I encountered an error while rescheduling your appointment. Please try again or contact support.",
             id: `msg_${Date.now()}`,

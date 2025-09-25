@@ -6,6 +6,7 @@ import { NodeName, UiPhase } from '@wellness/dto';
 import { PolicyQuestionPrompt } from '../../prompts/policyQuestion.js';
 import { PolicyValidationPrompt } from '../../prompts/policyValidation.js';
 
+// Anytime we provide an answer we should clear the query to avoid reprocessing
 export function makePolicyQuestionNode({ logger, llm, retrievalService }: Deps) {
   return async function policyQuestionNode(state: State): Promise<Command> {
     logger.info('policyQuestionNode: Processing policy question');
@@ -43,7 +44,9 @@ export function makePolicyQuestionNode({ logger, llm, retrievalService }: Deps) 
         return new Command({
           update: {
             messages: [...state.messages, noDataAiMessage],
-            // Keep userQuery for conversation history
+            // Anytime we provide an answer we should clear the query to avoid reprocessing
+            userQuery: '',
+            intent: null,
             uiPhase: UiPhase.Chatting,
           },
         });
@@ -191,8 +194,9 @@ ${retrievalResult.chunks.map(chunk =>
         return new Command({
           update: {
             messages: [...state.messages, conservativeMessage],
-            // Keep userQuery for conversation history
             uiPhase: UiPhase.Chatting,
+            userQuery: '',
+            intent: null,
             retrievedDocs: retrievalResult.chunks,
           },
         });
@@ -219,7 +223,8 @@ ${retrievalResult.chunks.map(chunk =>
         update: {
           messages: [...state.messages, answerMessage],
           uiPhase: UiPhase.Chatting,
-          // Keep userQuery for conversation history
+          userQuery: '',
+          intent: null,
           retrievedDocs: [],
           validatedAswer: '',
         },

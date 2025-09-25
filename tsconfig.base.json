@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
       "@dto": ["packages/dto/src/index"],

@@ -31,12 +31,6 @@ export function createDeps(embeddingService: EmbeddingService, retrievalService:
         return await searchPoliciesImpl(retrievalService, args);
       },
     },
-    intentInferenceTool: {
-      invoke: async (args: any) => {
-        const { intentInferenceTool } = await import('./tools/intentInference.js');
-        return await intentInferenceTool.invoke(args);
-      },
-    },
     rescheduleTool: {
       rescheduleAppointment: async (args: any) => {
         const { rescheduleTool } = await import('./tools/reschedule.js');

@@ -7,27 +7,14 @@ import { State } from "./schema.js";
  */
 export function routeAfterInferIntent({ logger }: Deps) {
   return (state: State) => {
-    // If there's no user query, don't route anywhere - end the current execution
-    if (!state.userQuery || state.userQuery.trim() === '') {
-      logger.info('No user query present, ending current execution');
-      return "__end__";
-    }
 
-    // If user has escalated, always route to policy questions regardless of intent
-    if (state.userEscalated) {
-      logger.info('User has previously escalated, routing to policy question');
-      return NodeName.POLICY_QUESTION;
-    }
+    logger.info('User intent is', { intent: state.intent });
 
-    if (state.intent === NodeName.OFFER_OPTIONS) {
-      logger.info('User intent is scheduling, routing to offer options agent');
-      return "offer_options_agent";
+    if (state.intent !== null) {;
+      return state.intent
     }
-    // For now we only have two options, get options for rescheduleing or
-    // getting policy information
-    // so we can return the policy question node
-    logger.info('User intent is policy question or unknown, routing to policy question');
-    return NodeName.POLICY_QUESTION;
+    logger.info('User intent is unknown, routing to end');
+    return "__end__";
   };
 }
 
@@ -58,11 +45,11 @@ export function routeAfterOfferOptionsAgent({ logger }: Deps) {
 
     if (lastMessage && "tool_calls" in lastMessage && (lastMessage as any).tool_calls && (lastMessage as any).tool_calls.length > 0) {
       logger.info('Agent produced tool calls, routing to tools execution');
-      return "offer_options_tools";
+      return NodeName.OFFER_OPTIONS_TOOLS;
     }
 
     logger.info('No tool calls needed, routing directly to final processing');
-    return "offer_options_final";
+    return NodeName.OFFER_OPTIONS_FINAL;
   };
 }
 
@@ -73,7 +60,7 @@ export function routeAfterConfirmTime({ logger }: Deps) {
   return (state: State) => {
     if (state.escalationNeeded) {
       logger.info('User rejected time confirmation, going back to offer options agent');
-      return "offer_options_agent";
+      return NodeName.OFFER_OPTIONS_AGENT;
     }
 
     logger.info('Time confirmed, proceeding to notify user');

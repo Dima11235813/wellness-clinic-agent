@@ -11,7 +11,7 @@ export interface GraphState {
 
   // Business logic state
   userQuery?: string;
-  intent?: typeof NodeName.POLICY_QUESTION | typeof NodeName.OFFER_OPTIONS | 'unknown';
+  intent?: typeof NodeName.POLICY_QUESTION | typeof NodeName.OFFER_OPTIONS_AGENT | 'unknown';
   userChoice?: any; // Store user's interrupt response
 
   // Scheduling state

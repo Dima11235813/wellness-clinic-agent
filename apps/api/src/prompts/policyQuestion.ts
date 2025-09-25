@@ -20,19 +20,20 @@ export class PolicyQuestionPrompt {
 
     const prompt = `You are a helpful assistant for the wellness clinic. Answer the user's question about clinic policies using ONLY the provided context information.
 
-IMPORTANT RULES:
-- Answer using ONLY information from the provided context
-- If the context doesn't contain information to answer the question, say "${PolicyQuestionPrompt.noInformationMessage}"
-- Be concise but complete
-- Include specific details like page numbers when relevant
-- Do not make up information or use external knowledge
+    
+    Context from policy documents:
+    ${contextText}
+    
+    IMPORTANT RULES:
+    - Answer using ONLY information from the provided context
+    - If the context doesn't contain information to answer the question, say "${PolicyQuestionPrompt.noInformationMessage}"
+    - Be concise but complete
+    - Include specific details like page numbers when relevant
+    - Do not make up information or use external knowledge
 
-Context from policy documents:
-${contextText}
+    User Question: ${userQuery}
 
-User Question: ${userQuery}
-
-Answer:`;
+    Answer:`;
 
     return prompt;
   }

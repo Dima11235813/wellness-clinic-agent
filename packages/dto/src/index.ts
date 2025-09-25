@@ -10,7 +10,9 @@ export enum NodeName {
   INFER_INTENT = 'infer_intent',
   POLICY_QUESTION = 'policy_question',
   POLICY_ANSWER = 'policy_answer',
-  OFFER_OPTIONS = 'offer_options',
+  OFFER_OPTIONS_AGENT = 'offer_options_agent',
+  OFFER_OPTIONS_TOOLS = 'offer_options_tools',
+  OFFER_OPTIONS_FINAL = 'offer_options_final',
   CONFIRM_TIME = 'confirm_time',
   NOTIFY_USER = 'notify_user',
   ESCALATE_HUMAN = 'escalate_human'
@@ -22,6 +24,10 @@ export interface TimeSlot {
   startISO: string;
   endISO: string;
   provider?: string;
+}
+
+export interface AvailabilityResponse {
+  slots: TimeSlot[];
 }
 
 // Represents a user's currently scheduled appointment that we might reschedule
@@ -79,7 +85,7 @@ export interface LangChainSerializedMessage {
   type: 'constructor';
   id: string[]; // e.g. ["langchain_core","messages","AIMessage"]
   kwargs: {
-    content: string | Array<{ type?: string; text?: string }>;
+    content: string | Array<{ type: string; text?: string }>;
     id?: string;
     additional_kwargs?: MessageAdditional;
     response_metadata?: Record<string, any>;

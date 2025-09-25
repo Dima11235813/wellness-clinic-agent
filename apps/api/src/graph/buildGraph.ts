@@ -32,10 +32,12 @@ export function buildGraph(deps: Deps) {
   const builder = new StateGraph(StateAnnotation)
   // Register nodes using factory pattern
   .addNode(NodeName.INFER_INTENT, makeInferIntentNode(deps))
-  .addNode(NodeName.POLICY_QUESTION, makePolicyQuestionNode(deps))
-  .addNode("offer_options_agent", makeOfferOptionsAgentNode(deps))
-  .addNode("offer_options_tools", makeOfferOptionsToolsNode(deps))
-  .addNode("offer_options_final", makeOfferOptionsFinalNode(deps))
+  .addNode(NodeName.POLICY_QUESTION, makePolicyQuestionNode(deps), { ends: [NodeName.INFER_INTENT] })
+  .addNode(NodeName.OFFER_OPTIONS_AGENT, makeOfferOptionsAgentNode(deps))
+  .addNode(NodeName.OFFER_OPTIONS_TOOLS, makeOfferOptionsToolsNode(deps))
+  // OFFER_OPTIONS_FINAL routes via addConditionalEdges below; no ends needed since node does not return goto
+  .addNode(NodeName.OFFER_OPTIONS_FINAL, makeOfferOptionsFinalNode(deps))
+  // These nodes do not return goto; routing is defined by edges below
   .addNode(NodeName.CONFIRM_TIME, makeConfirmTimeNode(deps))
   .addNode(NodeName.NOTIFY_USER, makeNotifyUserNode(deps))
   .addNode(NodeName.ESCALATE_HUMAN, makeEscalateHumanNode(deps))
@@ -46,22 +48,28 @@ export function buildGraph(deps: Deps) {
     .addConditionalEdges(
       NodeName.INFER_INTENT,
       routeAfterInferIntent(deps),
-      [NodeName.POLICY_QUESTION, "offer_options_agent", "__end__"]
+      [NodeName.POLICY_QUESTION, NodeName.OFFER_OPTIONS_AGENT, "__end__"]
     )
+    // Ensure policy flow returns to infer intent after answering
+    .addEdge(NodeName.POLICY_QUESTION, NodeName.INFER_INTENT)
 
     // Scheduling flow with ToolNode pattern
     .addConditionalEdges(
-      "offer_options_agent",
+      NodeName.OFFER_OPTIONS_AGENT,
       routeAfterOfferOptionsAgent(deps),
-      ["offer_options_tools", "offer_options_final"]
+      [NodeName.OFFER_OPTIONS_TOOLS, NodeName.OFFER_OPTIONS_FINAL]
     )
-    .addEdge("offer_options_tools", "offer_options_final")
-    .addEdge("offer_options_final", NodeName.CONFIRM_TIME)
+    .addEdge(NodeName.OFFER_OPTIONS_TOOLS, NodeName.OFFER_OPTIONS_FINAL)
+    .addConditionalEdges(
+      NodeName.OFFER_OPTIONS_FINAL,
+      routeAfterOfferOptions(deps),
+      [NodeName.ESCALATE_HUMAN, NodeName.CONFIRM_TIME]
+    )
 
     .addConditionalEdges(
       NodeName.CONFIRM_TIME,
       routeAfterConfirmTime(deps),
-      [NodeName.NOTIFY_USER, "offer_options_agent"]
+      [NodeName.NOTIFY_USER, NodeName.OFFER_OPTIONS_AGENT]
     )
     .addEdge(NodeName.NOTIFY_USER, NodeName.INFER_INTENT)
     .addEdge(NodeName.ESCALATE_HUMAN, NodeName.INFER_INTENT);

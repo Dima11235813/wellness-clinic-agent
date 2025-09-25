@@ -77,6 +77,7 @@ export class ChatThreadComponent {
     const idPath: string[] | undefined = Array.isArray((m as LangChainSerializedMessage)?.id) ? (m as LangChainSerializedMessage).id : undefined;
     if (idPath?.includes('HumanMessage')) return 'user';
     if (idPath?.includes('AIMessage')) return 'assistant';
+    if (idPath?.includes('ToolMessage')) return 'assistant'; // Tool results are from assistant
     if (typeof (m as any)?.type === 'string' && (m as any).type === 'human') return 'user';
     return 'assistant';
   }
@@ -85,6 +86,14 @@ export class ChatThreadComponent {
     if (typeof (m as ChatMessage)?.text === 'string') return (m as ChatMessage).text;
     const lc = m as LangChainSerializedMessage;
     const content = (lc as any)?.kwargs?.content ?? (lc as any)?.content;
+
+    // Check if this is a ToolMessage - they typically don't have displayable text
+    const idPath: string[] | undefined = Array.isArray((lc as any)?.id) ? (lc as any).id : undefined;
+    if (idPath?.includes('ToolMessage')) {
+      // ToolMessages contain tool results, not user-displayable text
+      return '';
+    }
+
     if (typeof content === 'string') return content;
     if (Array.isArray(content)) {
       const first = content[0] as any;

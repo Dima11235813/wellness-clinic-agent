@@ -5,7 +5,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 
 // Structured output schema for intent inference
 export const IntentInferenceSchema = z.object({
-  intent: z.string(),
+  intent: z.string(), // Can be NodeName.POLICY_QUESTION, NodeName.OFFER_OPTIONS_AGENT, or "unknown"
   confidence: z.number(),
   reason: z.string()
 });
@@ -20,9 +20,9 @@ export const INTENT_SYSTEM_PROMPT = `You are an intent classification assistant 
 
 Rules for classification:
 - "${NodeName.POLICY_QUESTION}": Questions about policies, rules, procedures, what's allowed, cancellation policies, membership rules, facility rules, equipment usage, membership benefits, facility access, rules and regulations, etc.
-- "${NodeName.OFFER_OPTIONS}": Messages about changing, canceling, booking, scheduling, or rescheduling appointments, making new appointments, modifying existing appointments, etc.
+- "${NodeName.OFFER_OPTIONS_AGENT}": Messages about changing, canceling, booking, scheduling, or rescheduling appointments, making new appointments, modifying existing appointments, etc.
 
-Always respond with valid JSON that matches the required schema. Be confident in your classification and provide a clear reason for your decision.`;
+Always respond with valid JSON that matches the required schema. If you're not confident (confidence < 0.6), set the intent to "unknown".`;
 
 // Structured prompt template with format instructions slot
 export const IntentClassifierPrompt = ChatPromptTemplate.fromMessages([

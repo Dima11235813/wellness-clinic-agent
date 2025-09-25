@@ -18,16 +18,19 @@ let embeddingService: EmbeddingService | null = null;
 let retrievalService: RetrievalService | null = null;
 
 try {
-  // Only attempt to initialize services if an API key is present
-  if (process.env.OPENAI_API_KEY) {
-    console.log('[api] Initializing embedding and retrieval services...');
-    embeddingService = new EmbeddingService(process.env.OPENAI_API_KEY);
-    retrievalService = new RetrievalService(embeddingService);
+  // Initialize services even if API key is missing so the graph can still run (RAG will be disabled)
+  const apiKey = process.env.OPENAI_API_KEY || 'DUMMY_KEY';
+  const hasRealKey = !!process.env.OPENAI_API_KEY;
 
-    const { getCompiledGraph } = await import('./graph/app.js');
-    compiledGraph = getCompiledGraph(embeddingService, retrievalService);
-  } else {
-    console.warn('[api] OPENAI_API_KEY not set. Graph will be disabled; serving static UI only.');
+  console.log('[api] Initializing embedding and retrieval services...');
+  embeddingService = new EmbeddingService(apiKey);
+  retrievalService = new RetrievalService(embeddingService);
+
+  const { getCompiledGraph } = await import('./graph/app.js');
+  compiledGraph = getCompiledGraph(embeddingService, retrievalService);
+
+  if (!hasRealKey) {
+    console.warn('[api] OPENAI_API_KEY not set. Graph is running without RAG (policy retrieval disabled).');
   }
 } catch (err) {
   console.warn('[api] Failed to initialize LangGraph. Serving static UI only.', err);

@@ -3,8 +3,10 @@ import { Deps } from "../deps.js";
 import { UiPhase } from "@wellness/dto";
 import { AIMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+import { escalationTool } from "../tools/escalation.js";
 
-export function makeEscalateHumanNode({ logger, tools }: Deps) {
+export function makeEscalateHumanNode({ logger }: Deps) {
   return async function escalateHumanNode(state: State): Promise<Command> {
     logger.info("escalateHumanNode: Escalating to human representative");
 
@@ -35,18 +37,37 @@ export function makeEscalateHumanNode({ logger, tools }: Deps) {
       }
     });
 
-    // Escalate to Slack (external API call)
+    // Escalate to Slack via ToolNode to follow best practices
     const userKey = state.userKey || state.threadId;
-    const escalationResult = await tools.escalationTool.escalateToSlack({
-      userKey,
-      reason: escalationReason
+    const toolNode: any = new (ToolNode as any)([escalationTool as any]);
+    const toolCallId = `tool_${Date.now()}`;
+
+    const aiToolCallMessage: any = new AIMessage({
+      content: "",
+      tool_calls: [
+        {
+          name: "escalate_to_slack",
+          args: { userKey, reason: escalationReason },
+          id: toolCallId,
+          type: "tool_call",
+        }
+      ]
     });
 
-    logger.info("escalateHumanNode: Escalation created in Slack", {
-      userKey,
-      escalationId: escalationResult.escalationId,
-      reason: escalationReason
-    });
+    try {
+      const toolInvocationResult: any = await (toolNode as any).invoke({ messages: [aiToolCallMessage] });
+      const resultMessages: any[] = (toolInvocationResult && toolInvocationResult.messages) || [];
+      const lastToolMsg: any = resultMessages[resultMessages.length - 1];
+      const escalationResult = typeof lastToolMsg?.content === 'string' ? JSON.parse(lastToolMsg.content) : lastToolMsg?.content;
+
+      logger.info("escalateHumanNode: Escalation created in Slack", {
+        userKey,
+        escalationId: escalationResult?.escalationId,
+        reason: escalationReason
+      });
+    } catch (e) {
+      logger.error("escalateHumanNode: Error invoking escalation ToolNode", { error: e });
+    }
 
     return new Command({
       update: {

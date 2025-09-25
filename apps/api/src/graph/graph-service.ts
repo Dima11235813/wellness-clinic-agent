@@ -69,7 +69,7 @@ export class GraphService {
       interrupt: undefined,
       
       userQuery,
-      intent: 'unknown',
+      intent: null,
       
       userEscalated: false,
       userKey: threadId,

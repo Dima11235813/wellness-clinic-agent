@@ -57,7 +57,9 @@ ${context}`;
 
       if (!answerText) {
         logger.warn("policyAnswerNode: Model returned empty content");
-        return new Command({ update: {} });
+        return new Command({ update: {
+          userQuery: '',
+        } });
       }
 
       const answerMessage = new AIMessage({
@@ -71,6 +73,7 @@ ${context}`;
       return new Command({
         update: {
           messages: [...state.messages, answerMessage],
+          userQuery: '',
           uiPhase: UiPhase.PolicyQA
         }
       });
@@ -93,7 +96,8 @@ ${context}`;
       return new Command({
         update: {
           messages: [...state.messages, errorMessage],
-          uiPhase: UiPhase.Chatting
+          uiPhase: UiPhase.Chatting,
+          userQuery: '',
         }
       });
     }

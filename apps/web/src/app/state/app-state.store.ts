@@ -348,8 +348,32 @@ export class AppStateStore {
 
           const mappedMessages: ChatMessage[] = (data.messages as any[]).map(toChatMessage);
 
+          // Extract available slots from ToolMessages before filtering
+          let extractedSlots: TimeSlot[] = [];
+          for (const msg of data.messages as any[]) {
+            const idPath: string[] | undefined = Array.isArray((msg as any)?.id) ? (msg as any).id : undefined;
+            if (idPath?.includes('ToolMessage')) {
+              const content = (msg as any)?.kwargs?.content ?? (msg as any)?.content;
+              if (Array.isArray(content)) {
+                // Assume ToolMessage content is an array of TimeSlot objects for availability tool
+                extractedSlots = content as TimeSlot[];
+                break; // Take the first ToolMessage with slots
+              }
+            }
+          }
+
           // Only render assistant messages from the stream to avoid duplicating local user echoes
-          const assistantOnly = mappedMessages.filter(m => m.role === 'assistant');
+          // But exclude ToolMessages as they contain internal tool results, not user-visible content
+          const assistantOnly = mappedMessages.filter(m => {
+            if (m.role !== 'assistant') return false;
+            // Check if this is a ToolMessage by looking at the original message
+            const originalMsg = (data.messages as any[]).find(orig => {
+              const origId = (orig as any)?.kwargs?.id ?? (orig as any)?.id ?? orig?.id;
+              return origId === m.id;
+            });
+            const idPath: string[] | undefined = Array.isArray((originalMsg as any)?.id) ? (originalMsg as any).id : undefined;
+            return !idPath?.includes('ToolMessage');
+          });
 
           // Merge new messages with existing ones, avoiding duplicates
           const currentMessages = this.messages();
@@ -364,9 +388,11 @@ export class AppStateStore {
           this.uiPhase.set(data.uiPhase);
           this.interrupt.set((data as any).interrupt ?? null);
           this.threadId.set(data.threadId);
-          // Update available slots if present in state
-          if ((data as any).availableSlots) {
+          // Update available slots from state data or extracted from ToolMessages
+          if ((data as any).availableSlots && (data as any).availableSlots.length > 0) {
             this._availableSlots.set((data as any).availableSlots);
+          } else if (extractedSlots.length > 0) {
+            this._availableSlots.set(extractedSlots);
           }
         } else if (parsed?.type === 'interrupt') {
           const interruptData = parsed.data as InterruptPayload;

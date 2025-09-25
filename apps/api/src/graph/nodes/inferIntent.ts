@@ -1,4 +1,3 @@
-import { interrupt, Command } from '@langchain/langgraph';
 import { Deps } from '../deps.js';
 import { State } from '../schema.js';
 import {
@@ -7,13 +6,12 @@ import {
   IntentInferenceResult,
 } from '../prompts/intentClassifier.js';
 import { GREETING_MESSAGE } from '../prompts/greeting.js';
-import { IntentResult } from '../tools.js';
 import { NodeName, UiPhase } from '@wellness/dto';
-import { AIMessage, HumanMessage, isAIMessage, ToolMessage } from '@langchain/core/messages';
+import { AIMessage } from '@langchain/core/messages';
 
 export function makeInferIntentNode({ logger, tools, llm }: Deps) {
   return async function inferIntentNode(state: State): Promise<Partial<State>> {
-    logger.info('inferIntentNode: Processing user input with LLM');
+    logger.info('inferIntentNode: Processing user input');
 
     if (!state.userQuery || state.userQuery.trim() === '') {
       logger.info('inferIntentNode: No user query present');
@@ -43,6 +41,7 @@ export function makeInferIntentNode({ logger, tools, llm }: Deps) {
         };
       }
     }
+
     const prompt = await IntentClassifierPrompt.partial({
       formatInstructions: IntentParser.getFormatInstructions(),
     });
@@ -54,77 +53,87 @@ export function makeInferIntentNode({ logger, tools, llm }: Deps) {
         userQuery: state.userQuery ?? '',
       })) as IntentInferenceResult;
 
-      const intentResult: IntentResult = {
-        intent:
-          parsed.intent === NodeName.OFFER_OPTIONS || parsed.intent === NodeName.POLICY_QUESTION
-            ? (parsed.intent as IntentResult['intent'])
-            : 'unknown',
-        confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0)),
-        reason: parsed.reason ?? 'No reason provided',
-      };
-
       logger.info('inferIntentNode: Intent classification result', {
         userQuery: state.userQuery,
-        classifiedIntent: intentResult.intent,
         rawIntent: parsed.intent,
-        confidence: intentResult.confidence,
-        reason: intentResult.reason
+        confidence: parsed.confidence,
+        reason: parsed.reason
       });
 
-      // Create appropriate message based on intent
-      let intentMessage: AIMessage;
-      let finalIntent = intentResult.intent;
-      let finalUiPhase = UiPhase.Chatting;
+      // Check if intent is clearly classified by the LLM
+      if (parsed.intent === NodeName.POLICY_QUESTION || parsed.intent === NodeName.OFFER_OPTIONS_AGENT) {
+        // Special handling for escalated users asking about offer options policy
+        if (state.userEscalated && parsed.intent === NodeName.OFFER_OPTIONS_AGENT) {
+          logger.info('inferIntentNode: Escalated user asking about offer options policy', {
+            rawIntent: parsed.intent,
+            confidence: parsed.confidence,
+            userEscalated: state.userEscalated
+          });
 
-      // If user has escalated, force policy question intent
-      if (state.userEscalated) {
-        finalIntent = NodeName.POLICY_QUESTION;
-        intentMessage = new AIMessage({
-          content: "I understand you're asking about our policies. Let me research that for you.",
-          id: `msg_${Date.now()}`,
-          additional_kwargs: {
-            at: new Date().toISOString(),
-          },
+          const escalationMessage = new AIMessage({
+            content: "I understand you're asking about our offer options policy. Since none of the available times worked for you based on our previous interaction, someone from our team will contact you shortly to assist you further.",
+            id: `msg_${Date.now()}`,
+            additional_kwargs: {
+              at: new Date().toISOString(),
+            },
+          });
+
+          return {
+            messages: [...state.messages, escalationMessage],
+            intent: undefined, // Clear intent to prevent routing
+            
+            userQuery: ''
+          };
+        }
+
+        // Clear intent for escalated users - routing will handle this
+        const finalIntent = state.userEscalated ? undefined : parsed.intent;
+
+        logger.info('inferIntentNode: Intent classified successfully', {
+          intent: finalIntent,
+          rawIntent: parsed.intent,
+          confidence: parsed.confidence,
+          userEscalated: state.userEscalated
         });
-      } else if (intentResult.intent === NodeName.OFFER_OPTIONS) {
-        intentMessage = new AIMessage({
-          content: "I understand you'd like to check available appointment times. Let me look up the available slots for you.",
-          id: `msg_${Date.now()}`,
-          additional_kwargs: {
-            at: new Date().toISOString(),
-          },
-        });
-        finalUiPhase = UiPhase.SelectingTime;
+
+        return {
+          intent: finalIntent,
+          userQuery: parsed.intent === NodeName.POLICY_QUESTION ? state.userQuery : '' // Keep userQuery for policy questions, clear for others
+        };
       } else {
-        intentMessage = new AIMessage({
-          content: "I understand you're asking about our policies. Let me research that for you.",
+        // Unclear intent - ask user to try again
+        logger.info('inferIntentNode: Intent unclear, asking user to try again', {
+          intent: parsed.intent,
+          confidence: parsed.confidence
+        });
+
+        const clarificationMessage = new AIMessage({
+          content: "I'm not sure what you're asking about. Could you please try rephrasing your question? For example, you can ask about appointment scheduling or our wellness policies.",
           id: `msg_${Date.now()}`,
           additional_kwargs: {
             at: new Date().toISOString(),
           },
         });
-      }
 
-      return {
-        messages: [...state.messages, intentMessage],
-        intent: finalIntent === NodeName.OFFER_OPTIONS ? NodeName.OFFER_OPTIONS :
-                finalIntent === NodeName.POLICY_QUESTION ? NodeName.POLICY_QUESTION :
-                NodeName.POLICY_QUESTION,
-        uiPhase: finalUiPhase
-      };
+        return {
+          messages: [...state.messages, clarificationMessage],
+          userQuery: '' // Clear userQuery to avoid cycles
+        };
+      }
     } catch (error) {
       logger.error('inferIntentNode: Error in intent inference', { error });
+
       const errorMessage = new AIMessage({
-        content: "I understand you're asking about our policies. Let me research that for you.",
+        content: "I'm having trouble understanding your question. Could you please try rephrasing it? You can ask about appointment scheduling or our wellness policies.",
         id: `msg_${Date.now()}`,
         additional_kwargs: {
           at: new Date().toISOString(),
         },
       });
+
       return {
         messages: [...state.messages, errorMessage],
-        intent: NodeName.POLICY_QUESTION,
-        uiPhase: UiPhase.Chatting
+        userQuery: '' // Clear userQuery to avoid cycles
       };
     }
   };

@@ -1,29 +1,25 @@
 // Export all tools
 export { availabilityTool } from './availability.js';
 export { escalationTool } from './escalation.js';
-export { intentInferenceTool, getUserIntent } from './intentInference.js';
 export { rescheduleTool } from './reschedule.js';
 
 // Export types
 export type { GetAvailabilityArgs } from './availability.js';
 export type { EscalateToSlackArgs } from './escalation.js';
-export type { InferIntentArgs, IntentResult } from './intentInference.js';
 export type { RescheduleAppointmentToolArgs } from './reschedule.js';
 
 // Array of all tools for ToolNode (if we decide to use it later)
 import { availabilityTool } from './availability.js';
 import { escalationTool } from './escalation.js';
-import { intentInferenceTool, getUserIntent } from './intentInference.js';
 import { rescheduleTool } from './reschedule.js';
 
-export const tools = [availabilityTool, escalationTool, intentInferenceTool, rescheduleTool];
+export const tools = [availabilityTool, escalationTool, rescheduleTool];
 
 // Subset of tools meant to be exposed to the LLM for agentic invocation
-export const agentTools = [getUserIntent];
+export const agentTools = [];
 
 // Tools interface for nodes to call tools directly
 import { TimeSlot } from "@wellness/dto";
-import { IntentResult } from './intentInference.js';
 
 export interface PolicyDocument {
   id: string;
@@ -38,7 +34,7 @@ export interface PolicyDocument {
 
 export interface Tools {
   availabilityTool: {
-    getAvailability: (args: { preferredDate?: string; preferredProvider?: string }) => Promise<TimeSlot[]>
+    getAvailability: (args: { preferredDate: string | null; preferredProvider: string | null }) => Promise<TimeSlot[]>
   };
   escalationTool: {
     escalateToSlack: (args: { userKey: string; reason: string }) => Promise<{ success: boolean; escalationId: string }>
@@ -46,11 +42,8 @@ export interface Tools {
   policySearchTool: {
     searchPolicies: (args: { query: string; topK?: number }) => Promise<PolicyDocument[]>
   };
-  intentInferenceTool: {
-    invoke: (args: { userQuery: string }) => Promise<IntentResult>
-  };
   rescheduleTool: {
-    rescheduleAppointment: (args: { eventId: string; newStartTime: string; newEndTime: string; reason?: string; userKey?: string; originalSlotId?: string }) => Promise<{ success: boolean; eventId: string; message: string; originalSlotId?: string }>
+    rescheduleAppointment: (args: { eventId: string; newStartTime: string; newEndTime: string; reason: string | null; userKey: string | null; originalSlotId: string | null }) => Promise<{ success: boolean; eventId: string; message: string; originalSlotId?: string }>
   };
 }
 
